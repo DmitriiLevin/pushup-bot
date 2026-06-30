@@ -5,6 +5,7 @@
     python main.py
 """
 
+import asyncio
 import logging
 import sys
 
@@ -30,6 +31,9 @@ def main() -> None:
     except ValueError as e:
         logger.critical("Помилка конфігурації: %s", e)
         sys.exit(1)
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     app = create_app(config)
 
