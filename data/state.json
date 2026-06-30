@@ -1,7 +1,11 @@
 {
   "current_week": 1,
   "current_program": "pushups",
-  "recent_phrases": {},
+  "recent_phrases": {
+    "regular": [
+      75
+    ]
+  },
   "daily": {},
   "update_offset": 0
 }
