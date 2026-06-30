@@ -60,6 +60,7 @@ class AppState:
     current_program: str = "pushups"
     recent_phrases: dict[str, list[int]] = field(default_factory=dict)
     daily: dict[str, DayRecord] = field(default_factory=dict)
+    update_offset: int = 0
 
     @classmethod
     def from_dict(cls, data: dict) -> AppState:
@@ -72,6 +73,7 @@ class AppState:
             current_program=data.get("current_program", "pushups"),
             recent_phrases=data.get("recent_phrases", {}),
             daily=daily,
+            update_offset=data.get("update_offset", 0),
         )
 
     def to_dict(self) -> dict:
@@ -83,6 +85,7 @@ class AppState:
                 day_str: record.to_dict()
                 for day_str, record in self.daily.items()
             },
+            "update_offset": self.update_offset,
         }
 
     def get_today_record(self) -> DayRecord:

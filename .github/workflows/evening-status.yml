@@ -1,0 +1,42 @@
+name: Evening Status
+
+# Runs at 16:00 UTC = 18:00 CEST (Europe/Warsaw, UTC+2, Apr–Oct)
+# In winter (CET, UTC+1) this fires at 17:00 Warsaw time.
+on:
+  schedule:
+    - cron: '0 16 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Process /done and send status
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          PARTICIPANTS: ${{ secrets.PARTICIPANTS }}
+        run: python scripts/process_done_and_status.py
+
+      - name: Commit updated state
+        run: |
+          git config user.name "pushup-bot[bot]"
+          git config user.email "pushup-bot@users.noreply.github.com"
+          git add data/state.json
+          git diff --staged --quiet || git commit -m "chore: state after evening processing [skip ci]"
+          git push

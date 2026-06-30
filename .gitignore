@@ -1,9 +1,6 @@
 # Environment
 .env
 
-# Runtime data
-data/state.json
-
 # Python
 __pycache__/
 *.py[cod]
