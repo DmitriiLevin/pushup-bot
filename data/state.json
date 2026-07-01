@@ -16,5 +16,8 @@
       "all_notified": false
     }
   },
-  "update_offset": 463922231
+  "update_offset": 463922231,
+  "last_advanced_on": "2026-07-01",
+  "challenge_completed_announced": false,
+  "intro_announced": true
 }
