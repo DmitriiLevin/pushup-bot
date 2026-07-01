@@ -1,0 +1,16 @@
+# Конфіг для деплою на Fly.io (безкоштовний тариф покриває цей бот з запасом).
+# Встановлення: див. розділ "Деплой на Fly.io" у README.
+
+app = "pushup-bot"          # заміни на унікальну назву, якщо зайнято
+primary_region = "waw"      # Варшава — найближче до Europe/Warsaw
+
+[build]
+
+[processes]
+  app = "python main.py"
+
+# Це фоновий бот (long polling), не веб-сервер — [[services]] і HTTP-порти
+# не потрібні. Головне — щоб машина не засинала.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

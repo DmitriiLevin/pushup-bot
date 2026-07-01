@@ -196,6 +196,44 @@ def format_week_message(week: int, total_weeks: int, program_name: str) -> str:
     )
 
 
+def format_intro_message(participant_names: list[str], ai_enabled: bool) -> str:
+    """
+    Одноразове вітальне повідомлення при першому запуску бота в групі.
+
+    Args:
+        participant_names: Список імен учасників.
+        ai_enabled:         Чи увімкнені AI-фічі (є ANTHROPIC_API_KEY).
+
+    Returns:
+        Готовий текст повідомлення.
+    """
+    names = ", ".join(participant_names)
+    ai_line = (
+        "🤖 Ще розумію живу мову: напишіть /ask <питання> або згадайте мене — відповім.\n\n"
+        if ai_enabled
+        else ""
+    )
+    return (
+        f"👋 Привіт, {names}!\n\n"
+        f"{SEPARATOR}\n\n"
+        f"Я бот вашого 15-тижневого челенджу з віджимань. Ось що я вмію:\n\n"
+        f"💪 12:00 (Пн–Пт) — надсилаю тренування на день\n"
+        f"✅ /done — відмічаєте виконання, миттєво\n"
+        f"📊 18:00 (Пн–Пт) — підсумок дня, хто виконав\n"
+        f"📈 П'ятниця — підсумок тижня\n\n"
+        f"Команди будь-коли:\n"
+        f"/today — сьогоднішнє тренування\n"
+        f"/status — хто вже виконав сьогодні\n"
+        f"/week — який зараз тиждень\n"
+        f"/motivation — підбадьорити себе\n"
+        f"/help — ця довідка ще раз\n\n"
+        f"{ai_line}"
+        f"Тиждень підвищується сам щопонеділка. Субота й неділя — вихідні, "
+        f"я мовчу про тренування.\n\n"
+        f"Погнали 🔥"
+    )
+
+
 def format_help_message(reminder_time_str: str, reminder_timezone: str) -> str:
     """
     Довідкове повідомлення /help.

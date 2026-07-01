@@ -61,6 +61,9 @@ class AppState:
     recent_phrases: dict[str, list[int]] = field(default_factory=dict)
     daily: dict[str, DayRecord] = field(default_factory=dict)
     update_offset: int = 0
+    last_advanced_on: str | None = None
+    challenge_completed_announced: bool = False
+    intro_announced: bool = False
 
     @classmethod
     def from_dict(cls, data: dict) -> AppState:
@@ -74,6 +77,9 @@ class AppState:
             recent_phrases=data.get("recent_phrases", {}),
             daily=daily,
             update_offset=data.get("update_offset", 0),
+            last_advanced_on=data.get("last_advanced_on"),
+            challenge_completed_announced=data.get("challenge_completed_announced", False),
+            intro_announced=data.get("intro_announced", False),
         )
 
     def to_dict(self) -> dict:
@@ -86,6 +92,9 @@ class AppState:
                 for day_str, record in self.daily.items()
             },
             "update_offset": self.update_offset,
+            "last_advanced_on": self.last_advanced_on,
+            "challenge_completed_announced": self.challenge_completed_announced,
+            "intro_announced": self.intro_announced,
         }
 
     def get_today_record(self) -> DayRecord:

@@ -21,11 +21,22 @@ class Config:
     chat_id: int
     participants: list[Participant]
     phrase_history_size: int
+    timezone: str
+    anthropic_api_key: str | None
+    ai_model: str
+    ai_enabled: bool
+    github_token: str | None
+    github_repo: str | None
 
     @property
     def participant_names(self) -> list[str]:
         """Список відображуваних імен учасників."""
         return [p.name for p in self.participants]
+
+    @property
+    def persistence_enabled(self) -> bool:
+        """Чи налаштована git-персистентність стану (переживає передеплой)."""
+        return bool(self.github_token and self.github_repo)
 
     @classmethod
     def from_env(cls) -> Config:
@@ -63,11 +74,26 @@ class Config:
                 f"PHRASE_HISTORY_SIZE має бути позитивним числом, отримано: '{phrase_history_size_str}'"
             )
 
+        timezone = os.getenv("TIMEZONE", "Europe/Warsaw").strip()
+
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "").strip() or None
+        ai_model = os.getenv("AI_MODEL", "claude-haiku-4-5-20251001").strip()
+        ai_enabled = anthropic_api_key is not None
+
+        github_token = os.getenv("GITHUB_TOKEN", "").strip() or None
+        github_repo = os.getenv("GITHUB_REPO", "").strip() or None
+
         return cls(
             bot_token=bot_token,
             chat_id=chat_id,
             participants=participants,
             phrase_history_size=phrase_history_size,
+            timezone=timezone,
+            anthropic_api_key=anthropic_api_key,
+            ai_model=ai_model,
+            ai_enabled=ai_enabled,
+            github_token=github_token,
+            github_repo=github_repo,
         )
 
 
