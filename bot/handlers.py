@@ -120,33 +120,54 @@ async def done_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await runtime.persist(f"{name} marked /done")
 
 
+def _match_participant(runtime: Runtime, raw: str) -> str | None:
+    """Шукає учасника за ім'ям або @username (без урахування регістру)."""
+    key = raw.strip().lstrip("@").lower()
+    for name in runtime.config.participant_names:
+        if name.lower() == key:
+            return name
+    return _username_to_name(runtime).get(key)
+
+
 async def undone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Скасовує власну відмітку /done за сьогодні (виправлення помилки)."""
+    """Скасовує відмітку /done за сьогодні.
+
+    Без аргументів — скасовує власну відмітку (за Telegram username того,
+    хто пише). З аргументом — /undone Ім'я — скасовує відмітку будь-кого
+    з команди, щоб не залежати від того, хто саме помилково відмітив."""
     runtime = _runtime(context)
-    user = update.message.from_user
-    username = (user.username or "").lower()
-    name = _username_to_name(runtime).get(username)
-
-    if not name:
-        await update.message.reply_text(
-            "🤔 Не знайшов тебе у списку учасників. Перевір, що твій Telegram "
-            "username доданий у PARTICIPANTS (звернись до адміна групи)."
-        )
-        return
-
+    names = runtime.config.participant_names
     record = runtime.state.get_or_create_today_record(runtime.today)
 
-    if name not in record.completed:
-        await update.message.reply_text(f"У {name} й так немає відмітки за сьогодні 🤷")
+    if context.args:
+        raw_target = " ".join(context.args)
+        target_name = _match_participant(runtime, raw_target)
+        if target_name is None:
+            await update.message.reply_text(
+                f"🤔 Не знайшов учасника '{raw_target}'.\nУчасники: {', '.join(names)}"
+            )
+            return
+    else:
+        user = update.message.from_user
+        username = (user.username or "").lower()
+        target_name = _username_to_name(runtime).get(username)
+        if not target_name:
+            await update.message.reply_text(
+                "🤔 Не знайшов тебе у списку учасників, тому не знаю, чию відмітку знімати.\n"
+                f"Можеш вказати ім'я явно: /undone {names[0]}"
+            )
+            return
+
+    if target_name not in record.completed:
+        await update.message.reply_text(f"У {target_name} й так немає відмітки за сьогодні 🤷")
         return
 
-    record.completed.remove(name)
-    names = runtime.config.participant_names
+    record.completed.remove(target_name)
     await update.message.reply_text(
-        f"↩️ Відмітку {name} за сьогодні скасовано.\n\n"
+        f"↩️ Відмітку {target_name} за сьогодні скасовано.\n\n"
         f"{format_status_message(names, record.completed)}"
     )
-    await runtime.persist(f"{name} undid /done")
+    await runtime.persist(f"{target_name}'s /done undone")
 
 
 async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
