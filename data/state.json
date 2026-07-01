@@ -5,6 +5,9 @@
     "regular": [
       75,
       128
+    ],
+    "team_done": [
+      11
     ]
   },
   "daily": {
@@ -14,7 +17,18 @@
         "Толя"
       ],
       "all_notified": false
+    },
+    "2026-07-01": {
+      "completed": [
+        "Діма",
+        "Толя",
+        "Юра"
+      ],
+      "all_notified": false
     }
   },
-  "update_offset": 463922231
+  "update_offset": 463922231,
+  "last_advanced_on": "2026-07-01",
+  "challenge_completed_announced": false,
+  "intro_announced": true
 }
