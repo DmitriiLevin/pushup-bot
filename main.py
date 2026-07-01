@@ -11,7 +11,7 @@
 """
 
 import logging
-from datetime import date, time, timedelta
+from datetime import time, timedelta
 from zoneinfo import ZoneInfo
 
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
@@ -26,10 +26,12 @@ from bot.handlers import (
     start_command,
     status_command,
     today_command,
+    undone_command,
     week_command,
 )
 from bot.jobs import evening_status_job, greeting_check_job, morning_reminder_job
 from bot.shared import Runtime
+from core.clock import local_today
 from core.config import Config
 from core.persistence import pull_latest
 from core.state import load_state
@@ -61,7 +63,7 @@ def build_runtime() -> Runtime:
     # Перше запалення: щоб maybe_advance_week не піднімав тиждень заднім числом
     # одразу при старті, якщо сьогодні понеділок, а історія просування ще порожня.
     if state.last_advanced_on is None:
-        state.last_advanced_on = date.today().isoformat()
+        state.last_advanced_on = local_today(config.timezone).isoformat()
 
     return Runtime(config=config, state=state)
 
@@ -104,6 +106,7 @@ def main() -> None:
     app.add_handler(CommandHandler("help", help_command, filters=own_chat))
     app.add_handler(CommandHandler("today", today_command, filters=own_chat))
     app.add_handler(CommandHandler("done", done_command, filters=own_chat))
+    app.add_handler(CommandHandler("undone", undone_command, filters=own_chat))
     app.add_handler(CommandHandler("status", status_command, filters=own_chat))
     app.add_handler(CommandHandler("week", week_command, filters=own_chat))
     app.add_handler(CommandHandler("motivation", motivation_command, filters=own_chat))

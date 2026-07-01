@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
 
 from telegram import Update
 from telegram.constants import ChatAction
@@ -53,7 +52,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     runtime = _runtime(context)
-    if date.today().weekday() >= 5:
+    if runtime.today.weekday() >= 5:
         await update.message.reply_text(format_rest_day_today())
         return
     program = runtime.program
@@ -64,7 +63,7 @@ async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     runtime = _runtime(context)
     names = runtime.config.participant_names
-    record = runtime.state.daily.get(date.today().isoformat())
+    record = runtime.state.get_today_record(runtime.today)
     completed = record.completed if record else []
     text = (
         f"📊 Сьогодні виконали {len(completed)}/{len(names)}:\n\n"
@@ -102,7 +101,7 @@ async def done_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     names = runtime.config.participant_names
-    record = runtime.state.get_or_create_today_record()
+    record = runtime.state.get_or_create_today_record(runtime.today)
 
     if name in record.completed:
         await update.message.reply_text(format_already_done_message(name))
@@ -119,6 +118,35 @@ async def done_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(format_all_done_message(celebration, names))
 
     await runtime.persist(f"{name} marked /done")
+
+
+async def undone_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Скасовує власну відмітку /done за сьогодні (виправлення помилки)."""
+    runtime = _runtime(context)
+    user = update.message.from_user
+    username = (user.username or "").lower()
+    name = _username_to_name(runtime).get(username)
+
+    if not name:
+        await update.message.reply_text(
+            "🤔 Не знайшов тебе у списку учасників. Перевір, що твій Telegram "
+            "username доданий у PARTICIPANTS (звернись до адміна групи)."
+        )
+        return
+
+    record = runtime.state.get_or_create_today_record(runtime.today)
+
+    if name not in record.completed:
+        await update.message.reply_text(f"У {name} й так немає відмітки за сьогодні 🤷")
+        return
+
+    record.completed.remove(name)
+    names = runtime.config.participant_names
+    await update.message.reply_text(
+        f"↩️ Відмітку {name} за сьогодні скасовано.\n\n"
+        f"{format_status_message(names, record.completed)}"
+    )
+    await runtime.persist(f"{name} undid /done")
 
 
 async def ask_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -97,21 +97,29 @@ class AppState:
             "intro_announced": self.intro_announced,
         }
 
-    def get_today_record(self) -> DayRecord:
-        """Повертає запис за сьогодні (або порожній, якщо немає)."""
-        today = date.today().isoformat()
-        return self.daily.get(today, DayRecord())
+    def get_today_record(self, today: date) -> DayRecord:
+        """Повертає запис за вказану дату (або порожній, якщо немає).
 
-    def get_or_create_today_record(self) -> DayRecord:
-        """Повертає або створює запис за сьогодні."""
-        today = date.today().isoformat()
-        if today not in self.daily:
-            self.daily[today] = DayRecord()
-        return self.daily[today]
+        Args:
+            today: Календарна дата, обчислена через core.clock.local_today()
+                   з урахуванням потрібного часового поясу — НЕ date.today().
+        """
+        return self.daily.get(today.isoformat(), DayRecord())
 
-    def mark_done(self, participant: str) -> DayRecord:
-        """Відмічає учасника як такого, що виконав тренування."""
-        record = self.get_or_create_today_record()
+    def get_or_create_today_record(self, today: date) -> DayRecord:
+        """Повертає або створює запис за вказану дату.
+
+        Args:
+            today: Календарна дата, обчислена через core.clock.local_today().
+        """
+        today_str = today.isoformat()
+        if today_str not in self.daily:
+            self.daily[today_str] = DayRecord()
+        return self.daily[today_str]
+
+    def mark_done(self, participant: str, today: date) -> DayRecord:
+        """Відмічає учасника як такого, що виконав тренування за вказану дату."""
+        record = self.get_or_create_today_record(today)
         if participant not in record.completed:
             record.completed.append(participant)
         return record

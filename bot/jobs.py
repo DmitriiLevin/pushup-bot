@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import random
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from telegram.ext import ContextTypes
@@ -57,7 +57,7 @@ async def morning_reminder_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     program = runtime.program
-    result = maybe_advance_week(runtime.state, program.total_weeks)
+    result = maybe_advance_week(runtime.state, program.total_weeks, runtime.today)
 
     if result is WeekAdvanceResult.COMPLETED:
         await context.bot.send_message(runtime.config.chat_id, CHALLENGE_COMPLETE_MESSAGE)
@@ -94,9 +94,9 @@ async def evening_status_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     names = runtime.config.participant_names
-    today = date.today()
+    today = runtime.today
     today_str = today.isoformat()
-    record = runtime.state.daily.get(today_str, DayRecord())
+    record = runtime.state.get_today_record(today)
     completed = record.completed
     count = len(completed)
     total = len(names)

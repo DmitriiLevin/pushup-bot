@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date
 
+from core.clock import local_today
 from core.config import Config
 from core.models import AppState
 from core.persistence import commit_and_push
@@ -30,8 +31,14 @@ class Runtime:
     def program(self) -> Program:
         return get_program(self.state.current_program)
 
+    @property
+    def today(self) -> date:
+        """Поточна календарна дата за TIMEZONE з конфігу (НЕ системний час
+        контейнера — на Fly.io/Railway це зазвичай UTC, що дає невірну дату)."""
+        return local_today(self.config.timezone)
+
     def today_record_completed(self) -> list[str]:
-        return self.state.daily.get(date.today().isoformat())
+        return self.state.get_today_record(self.today).completed
 
     async def persist(self, reason: str) -> None:
         """Зберігає стан локально і (якщо налаштовано) пушить у GitHub."""
@@ -49,9 +56,8 @@ class Runtime:
     def build_ai_context(self) -> str:
         """Формує текстовий опис поточного стану для передачі в AI як контекст."""
         program = self.program
-        today = date.today()
-        today_record = self.state.daily.get(today.isoformat())
-        completed_today = today_record.completed if today_record else []
+        today = self.today
+        completed_today = self.state.get_today_record(today).completed
         names = self.config.participant_names
 
         lines = [
