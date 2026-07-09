@@ -46,7 +46,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     runtime = _runtime(context)
-    text = format_help_message("12:00", runtime.config.timezone)
+    text = format_help_message("10:00", runtime.config.timezone)
     await update.message.reply_text(text)
 
 

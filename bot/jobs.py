@@ -1,8 +1,13 @@
 """
-Заплановані завдання бота: ранкове нагадування, вечірній статус,
-п'ятничний підсумок тижня. Раніше це були окремі GitHub Actions
+Заплановані завдання бота: ранкове нагадування (10:00), п'ятничний
+підсумок тижня (18:00). Раніше це були окремі GitHub Actions
 cron-запуски; тепер це JobQueue живого процесу — з коректним
 урахуванням часового поясу (без ручного перерахунку UTC/DST).
+
+Немає окремого "вечірнього статусу" щодня: коли останній учасник
+відмічає /done, святкове повідомлення надсилається одразу, миттєво
+(bot/handlers.py, done_command) — а не за розкладом і не якщо не всі
+встигли.
 """
 
 from __future__ import annotations
@@ -47,7 +52,7 @@ def _runtime(context: ContextTypes.DEFAULT_TYPE) -> Runtime:
 
 
 async def morning_reminder_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Щоденне нагадування о 12:00 Пн-Пт. Перед відправкою автоматично
+    """Щоденне нагадування о 10:00 Пн-Пт. Перед відправкою автоматично
     просуває тиждень програми, якщо сьогодні понеділок. Після завершення
     15-тижневого челенджу — надсилає одноразове привітання і більше
     нічого не робить у наступні дні."""
@@ -84,63 +89,49 @@ async def morning_reminder_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     await runtime.persist("morning reminder sent")
 
 
-async def evening_status_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Вечірній статус о 18:00 Пн-Пт. /done тепер обробляється миттєво
-    живим handler-ом, тож тут просто підбивається підсумок дня.
-    У п'ятницю додатково надсилається підсумок тижня з AI-аналізом."""
+async def friday_weekly_summary_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """О 18:00 щоп'ятниці — підсумок тижня з AI-аналізом.
+
+    Раніше тут ще й щодня (Пн-Пт) надсилався безумовний "Підсумок дня"
+    (хто виконав/не виконав) — його прибрано: миттєве святкове
+    повідомлення при завершенні всіма командою (bot/handlers.py,
+    done_command) вже покриває сценарій "усі виконали", а частковий
+    статус ("2 з 3") більше не розсилається сам по собі."""
     runtime = _runtime(context)
 
     if runtime.state.challenge_completed_announced:
         return
 
-    names = runtime.config.participant_names
     today = runtime.today
-    today_str = today.isoformat()
-    record = runtime.state.get_today_record(today)
-    completed = record.completed
-    count = len(completed)
-    total = len(names)
+    if today.weekday() != 4:  # тільки п'ятниця
+        return
 
-    status_lines = "\n".join(
-        f"{'🟢' if n in completed else '⚪'} {n}" for n in names
-    )
-    status_text = (
-        f"📊 Підсумок дня\n\n{SEPARATOR}\n\n"
-        f"Виконали {count}/{total}:\n\n{status_lines}"
-    )
-    if count == total and total > 0:
-        status_text += "\n\n🏆 Всі виконали! Так тримати!"
+    names = runtime.config.participant_names
+    monday = today - timedelta(days=today.weekday())
+    week_dates = [monday + timedelta(days=i) for i in range(5)]
+    weekly_counts = {
+        name: sum(
+            1 for d in week_dates
+            if name in runtime.state.daily.get(d.isoformat(), DayRecord()).completed
+        )
+        for name in names
+    }
 
-    await context.bot.send_message(runtime.config.chat_id, status_text)
-    logger.info("Статус дня надіслано: %d/%d виконали", count, total)
+    summary_text = format_weekly_summary(names, weekly_counts, runtime.state.current_week)
 
-    if today.weekday() == 4:  # п'ятниця
-        monday = today - timedelta(days=today.weekday())
-        week_dates = [monday + timedelta(days=i) for i in range(5)]
-        weekly_counts = {
-            name: sum(
-                1 for d in week_dates
-                if name in runtime.state.daily.get(d.isoformat(), DayRecord()).completed
-            )
-            for name in names
-        }
+    if runtime.config.ai_enabled:
+        stats_str = "\n".join(f"{n}: {c}/5 тренувань" for n, c in weekly_counts.items())
+        ai_text = await ai_client.weekly_analysis(
+            runtime.config.anthropic_api_key,  # type: ignore[arg-type]
+            runtime.config.ai_model,
+            stats_str,
+        )
+        if ai_text:
+            summary_text += f"\n\n{SEPARATOR}\n\n🤖 {ai_text}"
 
-        summary_text = format_weekly_summary(names, weekly_counts, runtime.state.current_week)
-
-        if runtime.config.ai_enabled:
-            stats_str = "\n".join(f"{n}: {c}/5 тренувань" for n, c in weekly_counts.items())
-            ai_text = await ai_client.weekly_analysis(
-                runtime.config.anthropic_api_key,  # type: ignore[arg-type]
-                runtime.config.ai_model,
-                stats_str,
-            )
-            if ai_text:
-                summary_text += f"\n\n{SEPARATOR}\n\n🤖 {ai_text}"
-
-        await context.bot.send_message(runtime.config.chat_id, summary_text)
-        logger.info("П'ятничний підсумок надіслано: %s", weekly_counts)
-
-    await runtime.persist("evening status processed")
+    await context.bot.send_message(runtime.config.chat_id, summary_text)
+    logger.info("П'ятничний підсумок надіслано: %s", weekly_counts)
+    await runtime.persist("friday weekly summary sent")
 
 
 async def greeting_check_job(context: ContextTypes.DEFAULT_TYPE) -> None:

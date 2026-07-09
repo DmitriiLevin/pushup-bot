@@ -29,7 +29,7 @@ from bot.handlers import (
     undone_command,
     week_command,
 )
-from bot.jobs import evening_status_job, greeting_check_job, morning_reminder_job
+from bot.jobs import friday_weekly_summary_job, greeting_check_job, morning_reminder_job
 from bot.shared import Runtime
 from core.clock import local_today
 from core.config import Config
@@ -120,18 +120,30 @@ def main() -> None:
     app.add_error_handler(error_handler)
 
     # Заплановані завдання (Пн-Пт, з урахуванням DST через ZoneInfo)
+    #
+    # УВАГА: у встановленій версії python-telegram-bot (21.10) параметр
+    # `days` для run_daily рахує дні від НЕДІЛІ (0=нд, 1=пн, ..., 6=сб),
+    # а не від понеділка, як можна було б очікувати. Перевірено напряму
+    # через APScheduler-тригер на реальних датах — (1,2,3,4,5) дає
+    # справжні Пн-Пт, а (5,) справжню п'ятницю. Не міняти на (0,1,2,3,4)
+    # без повторної перевірки — з тими індексами job фактично спрацьовує
+    # в неділю-четвер.
     job_queue = app.job_queue
     job_queue.run_daily(
         morning_reminder_job,
-        time=time(hour=12, minute=0, tzinfo=tz),
-        days=(0, 1, 2, 3, 4),
+        time=time(hour=10, minute=0, tzinfo=tz),
+        days=(1, 2, 3, 4, 5),
         name="morning_reminder",
     )
+    # Підсумок дня більше НЕ надсилається за розкладом — миттєве святкове
+    # повідомлення при завершенні всіма командою вже покриває цей сценарій
+    # (bot/handlers.py, done_command). Тут лишається тільки п'ятничний
+    # тижневий підсумок.
     job_queue.run_daily(
-        evening_status_job,
+        friday_weekly_summary_job,
         time=time(hour=18, minute=0, tzinfo=tz),
-        days=(0, 1, 2, 3, 4),
-        name="evening_status",
+        days=(5,),
+        name="friday_weekly_summary",
     )
     # Випадкові невимушені вітання ("привіт пацани" тощо) — щогодини перевіряє
     # шанс спрацювання, кожного дня, включно з вихідними.
