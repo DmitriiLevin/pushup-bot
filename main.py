@@ -11,7 +11,7 @@
 """
 
 import logging
-from datetime import time, timedelta
+from datetime import time
 from zoneinfo import ZoneInfo
 
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
@@ -29,7 +29,7 @@ from bot.handlers import (
     undone_command,
     week_command,
 )
-from bot.jobs import friday_weekly_summary_job, greeting_check_job, morning_reminder_job
+from bot.jobs import friday_weekly_summary_job, morning_reminder_job
 from bot.shared import Runtime
 from core.clock import local_today
 from core.config import Config
@@ -144,14 +144,6 @@ def main() -> None:
         time=time(hour=18, minute=0, tzinfo=tz),
         days=(5,),
         name="friday_weekly_summary",
-    )
-    # Випадкові невимушені вітання ("привіт пацани" тощо) — щогодини перевіряє
-    # шанс спрацювання, кожного дня, включно з вихідними.
-    job_queue.run_repeating(
-        greeting_check_job,
-        interval=timedelta(hours=1),
-        first=10,
-        name="greeting_check",
     )
 
     logger.info(

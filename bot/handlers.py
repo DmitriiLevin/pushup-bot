@@ -112,7 +112,11 @@ async def done_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     await update.message.reply_text(format_done_message(name, names, record.completed))
 
-    if all_done:
+    # Святкове повідомлення "всі виконали" — це, по суті, "вечірній підсумок",
+    # тільки миттєвий, а не по розкладу. У вихідні бот нічого не пише сам
+    # (навіть це), тому обмежуємо буднями — так само, як і решту проактивних
+    # повідомлень. Сам /done при цьому все одно працює в будь-який день.
+    if all_done and runtime.today.weekday() < 5:
         celebration, updated = pick_phrase(runtime.state, "team_done", runtime.config.phrase_history_size)
         runtime.state.recent_phrases["team_done"] = updated
         await update.message.reply_text(format_all_done_message(celebration, names))

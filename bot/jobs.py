@@ -1,21 +1,21 @@
 """
-Заплановані завдання бота: ранкове нагадування (10:00), п'ятничний
-підсумок тижня (18:00). Раніше це були окремі GitHub Actions
-cron-запуски; тепер це JobQueue живого процесу — з коректним
+Заплановані завдання бота: ранкове нагадування (10:00) і п'ятничний
+підсумок тижня (18:00) — це єдині два проактивні повідомлення, які
+бот пише сам, без команди від людини. Раніше це були окремі GitHub
+Actions cron-запуски; тепер це JobQueue живого процесу — з коректним
 урахуванням часового поясу (без ручного перерахунку UTC/DST).
 
 Немає окремого "вечірнього статусу" щодня: коли останній учасник
 відмічає /done, святкове повідомлення надсилається одразу, миттєво
 (bot/handlers.py, done_command) — а не за розкладом і не якщо не всі
-встигли.
+встигли. Це і є "вечірній підсумок" по суті — просто подія, а не
+фіксований час.
 """
 
 from __future__ import annotations
 
 import logging
-import random
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 from telegram.ext import ContextTypes
 
@@ -24,17 +24,11 @@ from core import ai_client
 from core.models import DayRecord
 from core.week import WeekAdvanceResult, maybe_advance_week
 from messages.formatter import format_weekend_message, format_weekly_summary, format_workout_message
-from messages.selector import pick_phrase, select_phrase
+from messages.selector import select_phrase
 
 logger = logging.getLogger(__name__)
 
 SEPARATOR = "━━━━━━━━━━━━━━"
-
-# Вітальні повідомлення "просто так": шанс спрацювання при кожній щогодинній
-# перевірці в активні години. 0.06 * ~11 активних годин ≈ 1 повідомлення
-# на 1.5 доби в середньому — тобто дійсно "іноді", а не щогодини.
-GREETING_ACTIVE_HOURS = range(10, 21)  # 10:00–20:59 за локальним часом
-GREETING_CHANCE = 0.06
 
 CHALLENGE_COMPLETE_MESSAGE = (
     "🏆 ЧЕЛЕНДЖ ЗАВЕРШЕНО! 🏆\n\n"
@@ -92,11 +86,9 @@ async def morning_reminder_job(context: ContextTypes.DEFAULT_TYPE) -> None:
 async def friday_weekly_summary_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     """О 18:00 щоп'ятниці — підсумок тижня з AI-аналізом.
 
-    Раніше тут ще й щодня (Пн-Пт) надсилався безумовний "Підсумок дня"
-    (хто виконав/не виконав) — його прибрано: миттєве святкове
-    повідомлення при завершенні всіма командою (bot/handlers.py,
-    done_command) вже покриває сценарій "усі виконали", а частковий
-    статус ("2 з 3") більше не розсилається сам по собі."""
+    Це другий і останній тип проактивного повідомлення від бота
+    (перший — ранкове нагадування). Жодних інших автоматичних
+    повідомлень бот не надсилає — тільки відповіді на команди."""
     runtime = _runtime(context)
 
     if runtime.state.challenge_completed_announced:
@@ -132,22 +124,3 @@ async def friday_weekly_summary_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_message(runtime.config.chat_id, summary_text)
     logger.info("П'ятничний підсумок надіслано: %s", weekly_counts)
     await runtime.persist("friday weekly summary sent")
-
-
-async def greeting_check_job(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Щогодини перевіряє, чи не написати команді щось невимушене просто так
-    (не про тренування). Спрацьовує рідко — див. GREETING_CHANCE вище."""
-    runtime = _runtime(context)
-    now = datetime.now(tz=ZoneInfo(runtime.config.timezone))
-
-    if now.hour not in GREETING_ACTIVE_HOURS:
-        return
-    if random.random() > GREETING_CHANCE:
-        return
-
-    phrase, updated = pick_phrase(runtime.state, "greetings", runtime.config.phrase_history_size)
-    runtime.state.recent_phrases["greetings"] = updated
-
-    await context.bot.send_message(runtime.config.chat_id, phrase)
-    logger.info("Випадкове вітання надіслано: %s", phrase)
-    await runtime.persist("random greeting sent")
