@@ -31,6 +31,14 @@ from messages.selector import pick_phrase
 
 logger = logging.getLogger(__name__)
 
+DIFFICULTY_POLL_QUESTION = "Як сьогоднішнє тренування? 💪"
+DIFFICULTY_POLL_OPTIONS = [
+    "😤 Було важко",
+    "🙂 Середньо",
+    "😌 Легко",
+    "🔥 Можу ще один підхід",
+]
+
 
 def _runtime(context: ContextTypes.DEFAULT_TYPE) -> Runtime:
     return context.application.bot_data["runtime"]
@@ -120,6 +128,14 @@ async def done_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         celebration, updated = pick_phrase(runtime.state, "team_done", runtime.config.phrase_history_size)
         runtime.state.recent_phrases["team_done"] = updated
         await update.message.reply_text(format_all_done_message(celebration, names))
+
+        await context.bot.send_poll(
+            chat_id=runtime.config.chat_id,
+            question=DIFFICULTY_POLL_QUESTION,
+            options=DIFFICULTY_POLL_OPTIONS,
+            is_anonymous=False,
+            allows_multiple_answers=False,
+        )
 
     await runtime.persist(f"{name} marked /done")
 
