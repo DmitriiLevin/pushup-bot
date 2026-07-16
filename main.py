@@ -29,7 +29,7 @@ from bot.handlers import (
     undone_command,
     week_command,
 )
-from bot.jobs import friday_weekly_summary_job, morning_reminder_job
+from bot.jobs import friday_weekly_summary_job, morning_reminder_job, photo_checkpoint_job
 from bot.shared import Runtime
 from core.clock import local_today
 from core.config import Config
@@ -129,6 +129,12 @@ def main() -> None:
     # без повторної перевірки — з тими індексами job фактично спрацьовує
     # в неділю-четвер.
     job_queue = app.job_queue
+    job_queue.run_daily(
+        photo_checkpoint_job,
+        time=time(hour=8, minute=30, tzinfo=tz),
+        days=(1,),
+        name="photo_checkpoint",
+    )
     job_queue.run_daily(
         morning_reminder_job,
         time=time(hour=10, minute=0, tzinfo=tz),

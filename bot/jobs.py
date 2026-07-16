@@ -1,15 +1,15 @@
 """
-Заплановані завдання бота: ранкове нагадування (10:00) і п'ятничний
-підсумок тижня (18:00) — це єдині два проактивні повідомлення, які
-бот пише сам, без команди від людини. Раніше це були окремі GitHub
-Actions cron-запуски; тепер це JobQueue живого процесу — з коректним
-урахуванням часового поясу (без ручного перерахунку UTC/DST).
+Заплановані завдання бота: ранкове нагадування (10:00), фото-чекпоінт
+кожні 4 тижні (8:30, тільки в понеділок) і п'ятничний підсумок тижня
+(18:00) — це єдині типи повідомлень, які бот пише сам, без команди
+від людини. Раніше це були окремі GitHub Actions cron-запуски; тепер
+це JobQueue живого процесу — з коректним урахуванням часового поясу
+(без ручного перерахунку UTC/DST).
 
 Немає окремого "вечірнього статусу" щодня: коли останній учасник
-відмічає /done, святкове повідомлення надсилається одразу, миттєво
-(bot/handlers.py, done_command) — а не за розкладом і не якщо не всі
-встигли. Це і є "вечірній підсумок" по суті — просто подія, а не
-фіксований час.
+відмічає /done, святкове повідомлення (і опитування про складність)
+надсилається одразу, миттєво (bot/handlers.py, done_command) — а не
+за розкладом і не якщо не всі встигли.
 """
 
 from __future__ import annotations
@@ -29,6 +29,9 @@ from messages.selector import select_phrase
 logger = logging.getLogger(__name__)
 
 SEPARATOR = "━━━━━━━━━━━━━━"
+
+# Раз на скільки тижнів просити фото прогресу (5, 9, 13-й тиждень і т.д.)
+PHOTO_CHECKPOINT_EVERY_N_WEEKS = 4
 
 CHALLENGE_COMPLETE_MESSAGE = (
     "🏆 ЧЕЛЕНДЖ ЗАВЕРШЕНО! 🏆\n\n"
@@ -124,3 +127,40 @@ async def friday_weekly_summary_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_message(runtime.config.chat_id, summary_text)
     logger.info("П'ятничний підсумок надіслано: %s", weekly_counts)
     await runtime.persist("friday weekly summary sent")
+
+
+async def photo_checkpoint_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """О 8:30, тільки в понеділок — раз на PHOTO_CHECKPOINT_EVERY_N_WEEKS
+    тижнів (тобто на старті 5, 9, 13-го тижня) просить усіх скинути фото
+    прогресу. Спрацьовує ДО ранкового нагадування (яке о 10:00 і саме
+    підвищує current_week), тому на момент виклику current_week ще
+    дорівнює щойно завершеному тижню (4, 8, 12) — це і є умова
+    спрацювання, окремий прапорець "чи вже надсилали" не потрібен,
+    бо ця конкретна комбінація тиждень+понеділок трапляється рівно
+    раз за весь челендж."""
+    runtime = _runtime(context)
+
+    if runtime.state.challenge_completed_announced:
+        return
+
+    today = runtime.today
+    if today.weekday() != 0:  # тільки понеділок
+        return
+
+    week = runtime.state.current_week
+    program = runtime.program
+    if week % PHOTO_CHECKPOINT_EVERY_N_WEEKS != 0 or week >= program.total_weeks:
+        return
+
+    next_week = week + 1
+    text = (
+        f"📸 Тиждень {next_week} починається!\n\n"
+        f"{SEPARATOR}\n\n"
+        f"Позаду {week} {'тижні' if week in (2, 3, 4) else 'тижнів'} тренувань — час зробити "
+        f"фото прогресу 💪\n\n"
+        f"Скиньте сюди своє фото, щоб бачити зміни за цей час. "
+        f"Порівняти буде з чим 😉"
+    )
+    await context.bot.send_message(runtime.config.chat_id, text)
+    logger.info("Фото-чекпоінт надіслано: завершено %d тижнів", week)
+    await runtime.persist("photo checkpoint sent")
