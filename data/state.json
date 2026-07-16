@@ -1,5 +1,5 @@
 {
-  "current_week": 1,
+  "current_week": 3,
   "current_program": "pushups",
   "recent_phrases": {
     "regular": [
@@ -39,13 +39,15 @@
     },
     "2026-07-15": {
       "completed": [
-        "Юра"
+        "Юра",
+        "Толя",
+        "Діма"
       ],
       "all_notified": false
     }
   },
   "update_offset": 463922231,
-  "last_advanced_on": "2026-07-01",
+  "last_advanced_on": "2026-07-13",
   "challenge_completed_announced": false,
   "intro_announced": true
 }
