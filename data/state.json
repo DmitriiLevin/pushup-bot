@@ -1,5 +1,5 @@
 {
-  "current_week": 3,
+  "current_week": 4,
   "current_program": "pushups",
   "recent_phrases": {
     "regular": [
@@ -19,6 +19,9 @@
     ],
     "friday": [
       0
+    ],
+    "monday": [
+      14
     ]
   },
   "daily": {
@@ -69,7 +72,7 @@
     }
   },
   "update_offset": 463922231,
-  "last_advanced_on": "2026-07-13",
+  "last_advanced_on": "2026-07-20",
   "challenge_completed_announced": false,
   "intro_announced": true
 }
